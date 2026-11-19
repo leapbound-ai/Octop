@@ -1,4 +1,5 @@
 import { useCallback, type RefObject } from "react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import cx from "classnames";
 import SessionList from "./SessionList";
@@ -175,27 +176,61 @@ export default function ChatSidebarPanel({
         )}
         style={
           !isMobile && sidebarOpen
-            ? { width: sidebarWidth, minWidth: sidebarWidth }
+            ? { width: sidebarWidth, minWidth: 0, maxWidth: "max(248px, 32vw)" }
             : undefined
         }
       >
+        {sidebarOpen && !isMobile && (
+          <div className={styles.sidebarTopControls}>
+            <button
+              type="button"
+              className={styles.sidebarPanelToggle}
+              onClick={handleRailToggle}
+              aria-label={historyLabel}
+              aria-expanded
+              aria-keyshortcuts={railShortcutAria("toggle-history")}
+              title={historyHint}
+            >
+              <PanelLeftClose size={17} strokeWidth={1.8} aria-hidden />
+            </button>
+          </div>
+        )}
         {sessionList}
       </div>
 
-      {!isMobile && sidebarOpen && (
+      {!isMobile && (
         <RailEdgeControl
-          expanded
+          expanded={sidebarOpen}
           onToggle={handleRailToggle}
+          showToggle={false}
           side="end"
           showLine
           placement="center"
-          className={styles.chatRailEdgeOpen}
+          className={
+            sidebarOpen ? styles.chatRailEdgeOpen : styles.chatRailEdgeClosed
+          }
           label={historyLabel}
           hint={historyHint}
           shortcut={railShortcutAria("toggle-history")}
-          onResizeStart={onSidebarResizeStart}
+          onResizeStart={(event) => {
+            if (!sidebarOpen) handleRailToggle();
+            onSidebarResizeStart(event);
+          }}
           resizeLabel={t("chat.resizeSidebar", "调整侧栏宽度")}
         />
+      )}
+      {!isMobile && !sidebarOpen && (
+        <button
+          type="button"
+          className={styles.sidebarCollapsedPanelToggle}
+          onClick={handleRailToggle}
+          aria-label={historyLabel}
+          aria-expanded={false}
+          aria-keyshortcuts={railShortcutAria("toggle-history")}
+          title={historyHint}
+        >
+          <PanelLeftOpen size={17} strokeWidth={1.8} aria-hidden />
+        </button>
       )}
     </div>
   );

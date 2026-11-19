@@ -4327,6 +4327,9 @@ class AgentManager:
             WorkspaceImageMaterializeMiddleware(workspace=ws),
             ThreadArtifactsMiddleware(
                 thread_repo=self._repos.thread_repo,
+                artifact_repo=self._repos.artifact_repo,
+                settings_repo=self._repos.settings_repo,
+                workspace_files=ws,
                 workspace_dir=harness_workspace,
                 agent_id=row.agent_id,
             ),

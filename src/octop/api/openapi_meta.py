@@ -150,6 +150,9 @@ OPENAPI_TAGS: list[dict[str, str]] = [
             "Prompts are managed in backend i18n."
         ),
     },
+    {"name": "artifacts", "description": "Search and manage files produced in conversations."},
+    {"name": "profit-calculator", "description": "Store calculator defaults and saved scenarios."},
+    {"name": "sourcing-rfq", "description": "Track supplier inquiries and purchasing terms."},
     {"name": "workspace", "description": "Agent workspace file tree: list, read, write, upload."},
     {"name": "agent_files", "description": "Agent-owned configuration files (SOUL.md, skills, …)."},
     {"name": "usage", "description": "Token usage summaries for billing and dashboards."},

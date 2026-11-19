@@ -2238,6 +2238,17 @@ def _apply_sqlite_migration(db: DatabasePool, version: int, path: Path) -> None:
             conn.execute("UPDATE _schema_version SET version = ?", (version,))
         return
     sql = path.read_text(encoding="utf-8")
+    if version == 27:
+        # Restores and repair can replay a migration after its columns exist.
+        _ensure_column(db, "threads", "artifact_parent_id", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(db, "threads", "artifact_parent_version", "INTEGER")
+        _ensure_column(db, "artifacts", "parent_version", "INTEGER")
+        # Reuse the canonical migration's remaining idempotent DDL and backfill.
+        sql = "BEGIN;\n" + sql[sql.index("CREATE TABLE") :]
+    if version == 32:
+        # Low schema watermarks can replay a migration after its column exists.
+        _ensure_column(db, "sourcing_rfq_replies", "manual_terms", "TEXT NOT NULL DEFAULT '{}'")
+        sql = sql[sql.index("UPDATE _schema_version") :]
     with db.connect() as conn:
         conn.executescript(sql)
 

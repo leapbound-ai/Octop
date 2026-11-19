@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from contextvars import copy_context
+from dataclasses import replace
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import ToolMessage
@@ -15,8 +18,18 @@ from langgraph.types import Command
 
 from octop.infra.agents.threads.artifact import (
     extract_artifact_paths,
+    extract_reported_artifact_paths,
     is_artifact_tool_name,
 )
+from octop.infra.agents.threads.artifact_context import SNAPSHOT_LIMIT, TEXT_KINDS
+from octop.infra.agents.threads.workbench_artifacts import workbench_entries
+from octop.infra.db.repos.artifacts import ArtifactRepo, ArtifactWrite
+from octop.infra.db.repos.settings import SettingsRepo
+from octop.infra.db.repos.threads import ThreadRepo
+from octop.infra.gateway.media.tool_media import tool_name_base
+
+if TYPE_CHECKING:
+    from octop_harness.backends.workspace import BackendWorkspace
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +78,15 @@ class ThreadArtifactsMiddleware(AgentMiddleware[Any, Any]):
         thread_repo: ArtifactThreadStore,
         workspace_dir: Path,
         agent_id: str = "",
+        artifact_repo: ArtifactRepo | None = None,
+        settings_repo: SettingsRepo | None = None,
+        workspace_files: BackendWorkspace | None = None,
     ) -> None:
         super().__init__()
         self._threads = thread_repo
+        self._artifacts = artifact_repo
+        self._settings = settings_repo
+        self._workspace_files = workspace_files
         self._workspace_dir = workspace_dir.expanduser()
         self._agent_id = (agent_id or "").strip()
 
@@ -88,7 +107,10 @@ class ThreadArtifactsMiddleware(AgentMiddleware[Any, Any]):
     ) -> ToolMessage | Command[Any]:
         request = self._rewrite_plan_path(request)
         result = await handler(request)
-        self._record(request, result)
+        context = copy_context()
+        await asyncio.get_running_loop().run_in_executor(
+            None, context.run, self._record, request, result
+        )
         return result
 
     def _rewrite_plan_path(self, request: ToolCallRequest) -> ToolCallRequest:
@@ -124,8 +146,6 @@ class ThreadArtifactsMiddleware(AgentMiddleware[Any, Any]):
             return
         tool_call = request.tool_call
         name = str(tool_call.get("name") or "")
-        if not is_artifact_tool_name(name):
-            return
         thread_id = current_thread_id()
         if not thread_id:
             return
@@ -136,13 +156,70 @@ class ThreadArtifactsMiddleware(AgentMiddleware[Any, Any]):
             result=result.content,
             workspace_dir=self._workspace_dir,
         )
-        if not paths:
-            return
-        self._append(thread_id, paths)
-        room = peer_room_thread_id(thread_id)
-        if room:
-            self._append(room, paths)
-        self._maybe_record_pending_plan(thread_id, paths)
+        if paths:
+            self._append(thread_id, paths)
+            room = peer_room_thread_id(thread_id)
+            if room:
+                self._append(room, paths)
+            self._maybe_record_pending_plan(thread_id, paths)
+        if self._artifacts is not None:
+            self._index(request, result, thread_id, name, raw_args)
+
+    def _index(
+        self,
+        request: ToolCallRequest,
+        result: ToolMessage,
+        thread_id: str,
+        name: str,
+        args: Any,
+    ) -> None:
+        assert self._artifacts is not None
+        try:
+            if is_artifact_tool_name(name):
+                paths = extract_artifact_paths(
+                    tool_name=name,
+                    args=args if isinstance(args, (str, Mapping)) else None,
+                    result=result.content,
+                )
+            else:
+                paths = extract_reported_artifact_paths(result.content)
+            if not paths:
+                return
+            thread = self._threads.get(thread_id) if isinstance(self._threads, ThreadRepo) else None
+            collect_all = (
+                self._settings is not None
+                and thread is not None
+                and self._settings.artifact_collect_mode(thread.user_id) == "all"
+            )
+            files = workbench_entries(
+                paths,
+                workspace=self._workspace_dir,
+                name=name,
+                state=request.state,
+                collect_all=collect_all,
+            )
+            if files:
+                if tool_name_base(name) in {"write_file", "edit_file"}:
+                    files = [self._snapshot_file(file) for file in files]
+                self._artifacts.record(thread_id, self._agent_id, files)
+        except Exception:
+            logger.warning("Failed to index artifacts for %s", thread_id, exc_info=True)
+
+    def _snapshot_file(self, file: ArtifactWrite) -> ArtifactWrite:
+        if (
+            self._workspace_files is None
+            or file.payload is not None
+            or file.mime_kind not in TEXT_KINDS
+        ):
+            return file
+        try:
+            content = self._workspace_files.read_text(file.path, limit=SNAPSHOT_LIMIT + 1)
+        except Exception:
+            logger.warning("Failed to read artifact version for %s", file.path, exc_info=True)
+            return file
+        if content is None:
+            return file
+        return replace(file, text=content[:SNAPSHOT_LIMIT], truncated=len(content) > SNAPSHOT_LIMIT)
 
     def _append(self, thread_id: str, paths: Sequence[str]) -> None:
         try:

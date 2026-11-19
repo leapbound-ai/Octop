@@ -13,6 +13,10 @@ from octop.infra.crypto.sealed_repos import (
 )
 from octop.infra.db.pool import DatabasePool
 from octop.infra.db.repos.agents import AgentRepo
+from octop.infra.db.repos.artifact_boards import ArtifactBoardRepo
+from octop.infra.db.repos.artifact_feedback import ArtifactFeedbackRepo
+from octop.infra.db.repos.artifact_references import ArtifactReferenceRepo
+from octop.infra.db.repos.artifacts import ArtifactRepo
 from octop.infra.db.repos.audit import AuditRepo
 from octop.infra.db.repos.auth_challenges import AuthChallengeRepo
 from octop.infra.db.repos.backends import BackendRepo
@@ -26,6 +30,7 @@ from octop.infra.db.repos.invites import InviteRepo
 from octop.infra.db.repos.knowledge import KnowledgeRepo
 from octop.infra.db.repos.proactive_care_config import ProactiveCareConfigRepo
 from octop.infra.db.repos.profile_avatars import ProfileAvatarRepo
+from octop.infra.db.repos.profit_calculator import ProfitCalculatorRepo
 from octop.infra.db.repos.providers import ProviderRepo
 from octop.infra.db.repos.published_experts import PublishedExpertRepo
 from octop.infra.db.repos.resource_group_grants import ResourceGroupGrantRepo
@@ -33,6 +38,7 @@ from octop.infra.db.repos.secrets import SecretRepo
 from octop.infra.db.repos.sessions import SessionRepo
 from octop.infra.db.repos.settings import SettingsRepo
 from octop.infra.db.repos.skill_packages import SkillPackageRepo
+from octop.infra.db.repos.sourcing_rfq import SourcingRfqRepo
 from octop.infra.db.repos.sso import SsoRepo
 from octop.infra.db.repos.thread_messages import ThreadMessageRepo
 from octop.infra.db.repos.threads import ThreadRepo
@@ -62,6 +68,12 @@ class RepoBundle:
     cron_repo: CronJobRepo
     session_repo: SessionRepo
     thread_repo: ThreadRepo
+    artifact_repo: ArtifactRepo
+    artifact_feedback_repo: ArtifactFeedbackRepo
+    artifact_board_repo: ArtifactBoardRepo
+    artifact_reference_repo: ArtifactReferenceRepo
+    profit_calculator_repo: ProfitCalculatorRepo
+    sourcing_rfq_repo: SourcingRfqRepo
     thread_message_repo: ThreadMessageRepo
     trajectory_event_repo: TrajectoryEventRepo
     secret_repo: SecretRepo
@@ -102,6 +114,12 @@ class RepoBundle:
             cron_repo=CronJobRepo(db),
             session_repo=SessionRepo(db),
             thread_repo=ThreadRepo(db),
+            artifact_repo=ArtifactRepo(db),
+            artifact_feedback_repo=ArtifactFeedbackRepo(db),
+            artifact_board_repo=ArtifactBoardRepo(db),
+            artifact_reference_repo=ArtifactReferenceRepo(db),
+            profit_calculator_repo=ProfitCalculatorRepo(db),
+            sourcing_rfq_repo=SourcingRfqRepo(db),
             thread_message_repo=ThreadMessageRepo(db),
             trajectory_event_repo=TrajectoryEventRepo(db),
             secret_repo=secret_repo,
@@ -175,6 +193,30 @@ class SharedServices:
     @property
     def thread_repo(self) -> ThreadRepo:
         return self.repos.thread_repo
+
+    @property
+    def artifact_board_repo(self) -> ArtifactBoardRepo:
+        return self.repos.artifact_board_repo
+
+    @property
+    def artifact_reference_repo(self) -> ArtifactReferenceRepo:
+        return self.repos.artifact_reference_repo
+
+    @property
+    def artifact_repo(self) -> ArtifactRepo:
+        return self.repos.artifact_repo
+
+    @property
+    def profit_calculator_repo(self) -> ProfitCalculatorRepo:
+        return self.repos.profit_calculator_repo
+
+    @property
+    def sourcing_rfq_repo(self) -> SourcingRfqRepo:
+        return self.repos.sourcing_rfq_repo
+
+    @property
+    def artifact_feedback_repo(self) -> ArtifactFeedbackRepo:
+        return self.repos.artifact_feedback_repo
 
     @property
     def thread_message_repo(self) -> ThreadMessageRepo:

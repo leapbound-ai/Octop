@@ -15,6 +15,9 @@ import {
   Sparkles,
   Puzzle,
   Package,
+  Files,
+  Calculator,
+  ClipboardList,
   HardDrive,
   GraduationCap,
   Shield,
@@ -157,6 +160,24 @@ export function buildNavSections(
       path: "/chat",
       icon: <MessageSquareText size={iconSize} strokeWidth={iconStroke} />,
       labelKey: "nav.chat",
+    },
+    {
+      key: "artifacts",
+      path: "/artifacts",
+      icon: <Files size={iconSize} strokeWidth={iconStroke} />,
+      labelKey: "nav.artifacts",
+    },
+    {
+      key: "supplier-rfq",
+      path: "/supplier-rfq",
+      icon: <ClipboardList size={iconSize} strokeWidth={iconStroke} />,
+      labelKey: "nav.sourcingRfq",
+    },
+    {
+      key: "profit-calculator",
+      path: "/profit-calculator",
+      icon: <Calculator size={iconSize} strokeWidth={iconStroke} />,
+      labelKey: "nav.profitCalculator",
     },
   ];
   if (navAllowed(user, "experts")) {

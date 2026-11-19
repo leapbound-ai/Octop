@@ -1,0 +1,10 @@
+id: brand-os-sourcing
+version: 1.1.2
+name: 选品研究
+description: 从使用场景发现商品方向，核对来源与实盘毛利，交付可下载报告
+kind: tool
+entry: main.py
+group: tools
+ui:
+  entry: ui/dist/index.js
+  manifest: ui/dist/manifest.json

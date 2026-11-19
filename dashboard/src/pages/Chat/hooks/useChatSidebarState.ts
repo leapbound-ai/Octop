@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { RAIL_COLLAPSE_OVERSHOOT } from "../../../hooks/useHorizontalResize";
 import { beginPointerDragSession } from "../../../hooks/usePointerDragSession";
 
 export const CHAT_SIDEBAR_KEY = "octop:chat-sidebar:open";
@@ -104,7 +105,6 @@ function clampSidebarWidth(n: number): number {
 function applySidebarWidth(el: HTMLElement | null, width: number) {
   if (!el) return;
   el.style.width = `${width}px`;
-  el.style.minWidth = `${width}px`;
 }
 
 /**
@@ -134,18 +134,25 @@ export function useChatSidebarState(isMobile: boolean) {
       setIsSidebarResizing(true);
       resizeStartRef.current = {
         x: e.clientX,
-        width: sidebarWidthRef.current,
+        width:
+          sidebarElRef.current?.getBoundingClientRect().width ||
+          sidebarWidthRef.current,
       };
-      pendingWidthRef.current = sidebarWidthRef.current;
+      const savedWidth = sidebarWidthRef.current;
+      pendingWidthRef.current = savedWidth;
+      let collapseOnRelease = false;
 
       beginPointerDragSession({
         pointerId: e.pointerId,
         target: handle,
         cursor: "col-resize",
         onMove: (clientX) => {
-          const next = clampSidebarWidth(
+          const requested = Math.round(
             resizeStartRef.current.width + clientX - resizeStartRef.current.x,
           );
+          collapseOnRelease =
+            requested <= SIDEBAR_WIDTH_MIN - RAIL_COLLAPSE_OVERSHOOT;
+          const next = clampSidebarWidth(requested);
           pendingWidthRef.current = next;
           sidebarWidthRef.current = next;
           applySidebarWidth(sidebarElRef.current, next);
@@ -154,6 +161,13 @@ export function useChatSidebarState(isMobile: boolean) {
           const finalWidth = pendingWidthRef.current ?? sidebarWidthRef.current;
           pendingWidthRef.current = null;
           setIsSidebarResizing(false);
+          if (collapseOnRelease) {
+            sidebarWidthRef.current = savedWidth;
+            setSidebarWidth(savedWidth);
+            applySidebarWidth(sidebarElRef.current, savedWidth);
+            setSidebarOpen(false);
+            return;
+          }
           sidebarWidthRef.current = finalWidth;
           applySidebarWidth(sidebarElRef.current, finalWidth);
           setSidebarWidth(finalWidth);
@@ -165,7 +179,7 @@ export function useChatSidebarState(isMobile: boolean) {
         },
       });
     },
-    [isMobile],
+    [isMobile, setSidebarOpen],
   );
 
   return {

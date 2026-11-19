@@ -1,0 +1,7 @@
+id: brand-os-sourcing-artifacts
+version: 1.0.0
+name: 选品报告原文保存
+description: 保存本轮选品报告时保持原文与引用链接完整
+kind: hook
+entry: main.py
+group: tools

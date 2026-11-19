@@ -1,0 +1,15 @@
+{
+  "id":"brand-os-sourcing",
+  "label":{"zh":"选品研究员","en":"Product Sourcing Researcher"},
+  "description":{"zh":"从使用场景发现商品方向，给出可追溯候选、验证清单与完整报告。","en":"Evidence-backed product discovery and validation reports."},
+  "welcome_message":{"zh":"想为哪类人群、场景或痛点找商品？告诉我方向即可开始。","en":"Describe an audience, use case or pain point to research."},
+  "icon_name":"search",
+  "color":"#17634f",
+  "prompt_files":["SOUL.md"],
+  "quick_prompts":[
+    {"title":"适老穿衣辅助","description":"围绕日常穿脱困难寻找独立商品","prompt":"给适老穿衣辅助做一轮广泛选品，输出带出处的候选和完整报告。","icon_name":"search"},
+    {"title":"小空间收纳","description":"发现具体购买任务与替代方案","prompt":"给小户型厨房收纳做一轮广度选品，优先功能简单、售后轻的方向，输出报告。","icon_name":"search"},
+    {"title":"开放探索","description":"跨人群与场景寻找细分机会","prompt":"不限定品类，探索至少四种不同场景，为拼多多小卖家做一轮广度选品并保存报告。","icon_name":"search"}
+  ],
+  "task_examples":[]
+}

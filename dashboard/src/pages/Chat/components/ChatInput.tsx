@@ -467,7 +467,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     }, [text, agentId, threadId]);
     const submitRef = useRef<() => void>(() => {});
 
-    const MIN_TEXTAREA_HEIGHT = isMobile ? 42 : 78;
+    const MIN_TEXTAREA_HEIGHT = 32;
 
     const {
       slashMenuOpen,

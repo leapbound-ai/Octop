@@ -1,7 +1,16 @@
 import { Layout } from "antd";
-import { lazy, Suspense, useEffect, useState, useCallback } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
+import { EXPANDED_WIDTH } from "../sidebarNav";
+import { useHorizontalResize } from "../../hooks/useHorizontalResize";
 import Header from "../Header";
 import PageLoading from "../../components/PageLoading";
 import { ServiceRestartProvider } from "../../context/ServiceRestartContext";
@@ -41,6 +50,7 @@ const WorkbenchPage = lazy(() => import("../../pages/Control/Workbench"));
 const { Content } = Layout;
 
 const SIDEBAR_COLLAPSED_KEY = "octop:sidebar:collapsed";
+const SIDEBAR_WIDTH_KEY = "octop:sidebar:width";
 
 function getSavedCollapsed(): boolean {
   try {
@@ -99,6 +109,25 @@ export default function MainLayout() {
       /* ignore */
     }
   }, []);
+
+  const collapseNav = useCallback(
+    () => persistNavCollapsed(true),
+    [persistNavCollapsed],
+  );
+  const navRailRef = useRef<HTMLDivElement>(null);
+  const {
+    size: navWidth,
+    isResizing: isNavResizing,
+    onResizeStart: onNavResizeStart,
+  } = useHorizontalResize({
+    min: 180,
+    max: 340,
+    defaultSize: EXPANDED_WIDTH,
+    storageKey: SIDEBAR_WIDTH_KEY,
+    resizeTargetRef: navRailRef,
+    onCollapse: collapseNav,
+    onExpand: () => persistNavCollapsed(false),
+  });
 
   /** Mobile header / overlay: simple nav toggle. */
   const toggleCollapsed = useCallback(() => {
@@ -319,17 +348,24 @@ export default function MainLayout() {
                 selectedKey={selectedKey}
                 collapsed={collapsed}
                 onToggle={toggleCollapsed}
+                onDesktopRailToggle={handleNavRailToggle}
                 isMobile={isMobile}
+                desktopRailRef={navRailRef}
+                expandedWidth={navWidth}
+                isResizing={isNavResizing}
               />
               {!isMobile && (
                 <RailEdgeControl
                   expanded={!collapsed}
                   onToggle={handleNavRailToggle}
+                  showToggle={false}
                   side="end"
                   placement="center"
                   label={navEdgeLabel}
                   hint={navEdgeHint}
                   shortcut={railShortcutAria("toggle-nav")}
+                  onResizeStart={onNavResizeStart}
+                  resizeLabel={t("layout.resizeNav")}
                 />
               )}
             </div>

@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS artifact_reviews (
+  artifact_id TEXT PRIMARY KEY REFERENCES artifacts(artifact_id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL DEFAULT 0 CHECK (rating BETWEEN 0 AND 5),
+  decision TEXT NOT NULL DEFAULT 'pending' CHECK (decision IN ('pending', 'adopted', 'rejected')),
+  use_for_preferences INTEGER NOT NULL DEFAULT 1 CHECK (use_for_preferences IN (0, 1)),
+  revision INTEGER,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS artifact_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  comment_id TEXT NOT NULL UNIQUE,
+  artifact_id TEXT NOT NULL REFERENCES artifacts(artifact_id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  revision INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_artifact_comments_artifact ON artifact_comments(artifact_id, id DESC);
+UPDATE _schema_version SET version = 29;

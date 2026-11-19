@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -23,6 +24,7 @@ from octop.infra.agents.threads.artifact import (
 from octop.infra.db.migrate import run_migrations
 from octop.infra.db.pool import SqlitePool
 from octop.infra.db.repos.agents import AgentRepo
+from octop.infra.db.repos.artifacts import ArtifactRepo, ArtifactWrite
 from octop.infra.db.repos.threads import ThreadRepo
 from octop.infra.db.repos.users import UserRepo
 from octop.infra.utils.thread_artifact import ThreadArtifact
@@ -323,3 +325,195 @@ def test_append_artifacts_dedupes_by_agent_and_path(tmp_path: Path) -> None:
         ThreadArtifact(path="outbound/a.md", agent_id="member-a"),
         ThreadArtifact(path="outbound/a.md", agent_id="member-b"),
     )
+
+
+def test_workbench_collects_unique_user_owned_reports(tmp_path: Path) -> None:
+    db = SqlitePool(tmp_path / "octop.db")
+    run_migrations(db)
+    users = UserRepo(db)
+    owner = users.create(username="owner", password_hash="h", role="user")
+    other = users.create(username="other", password_hash="h", role="user")
+    AgentRepo(db).create(agent_id="agent", user_id=owner, name="Agent")
+    threads = ThreadRepo(db)
+    threads.insert(
+        thread_id="thread",
+        agent_id="agent",
+        user_id=owner,
+        channel_type="dashboard",
+        session_key="session",
+    )
+    artifacts = ArtifactRepo(db)
+    workspace = _ws(tmp_path)
+    middleware = ThreadArtifactsMiddleware(
+        thread_repo=threads, workspace_dir=workspace, agent_id="agent", artifact_repo=artifacts
+    )
+    filename = "outbound/选品报告-户外.md"
+    prior = ToolMessage(
+        name="run_breadth_research",
+        content=json.dumps(
+            {
+                "filename": filename,
+                "status": "completed",
+                "octop_ui": {"renderer": "sourcing_report", "version": 1},
+                "data_ref": "artifact",
+            }
+        ),
+        artifact={"scene": "户外", "candidates": [], "sources": []},
+        tool_call_id="research",
+    )
+    result = ToolMessage(content="Written", tool_call_id="tc1")
+    with patch(
+        "octop.infra.agents.middleware.thread_artifacts.current_thread_id", return_value="thread"
+    ):
+        for path in (filename, (workspace / filename).as_posix(), "outbound/tmp/skip.md"):
+            request = _request("write_file", {"file_path": path})
+            request.state = {"messages": [prior]}
+            middleware._record(request, result)
+
+    listed = artifacts.list_for_user(
+        owner,
+        status="active",
+        agent_id=None,
+        kind=None,
+        tag="户外",
+        query=None,
+        since=None,
+        until=None,
+        newest_first=True,
+        page=1,
+        page_size=25,
+    )
+    assert listed["total"] == 1
+    assert artifacts.stats(owner, week_start=0)["total"] == 1
+    artifact_id = listed["items"][0]["artifact_id"]
+    assert artifacts.get(other, artifact_id) is None
+    detail = artifacts.get(owner, artifact_id)
+    assert detail is not None
+    assert detail["kind"] == "sourcing-report"
+    assert detail["payload"]["scene"] == "户外"
+    assert [row["revision"] for row in artifacts.versions(owner, artifact_id)] == [1]
+    assert artifacts.version(other, artifact_id, 1) is None
+
+    threads.insert(
+        thread_id="followup",
+        agent_id="agent",
+        user_id=owner,
+        channel_type="dashboard",
+        session_key="session",
+        artifact_parent_id=artifact_id,
+        artifact_parent_version=1,
+    )
+    for text in ("旧版采购表", "新版采购表", "新版采购表"):
+        artifacts.record(
+            "followup",
+            "agent",
+            [
+                ArtifactWrite("outbound/check.md", "check.md", "markdown", text=text),
+            ],
+        )
+    rows = artifacts.list_for_user(
+        owner,
+        status="active",
+        agent_id=None,
+        kind=None,
+        tag=None,
+        query="旧版采购表",
+        since=None,
+        until=None,
+        newest_first=True,
+        page=1,
+        page_size=25,
+    )
+    assert rows["total"] == 1
+    child_id = rows["items"][0]["artifact_id"]
+    child = artifacts.get(owner, child_id)
+    assert child is not None
+    assert (child["parent_id"], child["parent_version"]) == (artifact_id, 1)
+    assert [row["revision"] for row in artifacts.versions(owner, child_id)] == [2, 1]
+
+    # Boards, explicit references, and inherited lineage share ownership boundaries.
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from starlette.responses import JSONResponse
+
+    from octop.api.deps import current_user, get_server
+    from octop.api.routers.artifacts import router
+    from octop.infra.db.services import RepoBundle
+    from octop.infra.errors import OctopError
+
+    bundle = RepoBundle.from_pool(db)
+    boards = bundle.artifact_board_repo
+    refs = bundle.artifact_reference_repo
+    board = boards.create(owner, "在售选品池")
+    board_id = board["board_id"]
+    second = boards.create(owner, "观望清单")["board_id"]
+    assert boards.list(other) == []
+    assert not boards.save(other, board_id, artifact_id, True)
+    assert not boards.rename(other, board_id, "stolen")
+    assert not boards.delete(other, board_id)
+    assert boards.save(owner, board_id, artifact_id, True)
+    assert boards.save(owner, board_id, artifact_id, None)  # Preserve pin on repeated save.
+    assert boards.save(owner, board_id, child_id, None)
+    assert boards.save(owner, second, artifact_id, None)
+    assert boards.list(owner)[0]["total"] == 2
+    assert refs.add(owner, child_id, artifact_id)
+    assert refs.add(owner, child_id, artifact_id)
+    assert not refs.add(owner, artifact_id, artifact_id)
+    assert not refs.add(other, child_id, artifact_id)
+    assert refs.graph(other, child_id)["edges"] == []
+    assert {edge["kind"] for edge in refs.graph(owner, child_id)["edges"]} == {
+        "reference",
+        "derivation",
+    }
+    assert len(refs.graph(owner, artifact_id)["edges"]) == 2
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api/artifacts")
+    acting = SimpleNamespace(id=owner)
+    app.dependency_overrides[current_user] = lambda: acting
+    app.dependency_overrides[get_server] = lambda: SimpleNamespace(services=bundle)
+
+    @app.exception_handler(OctopError)
+    async def handle_error(request, error):
+        return JSONResponse(error.to_envelope(), status_code=error.status)
+
+    with TestClient(app) as client:
+        prefix = "/api/artifacts"
+        response = client.get(prefix, params={"board_id": board_id})
+        assert response.status_code == 200, response.text
+        assert response.json()["items"][0]["artifact_id"] == artifact_id
+        assert response.json()["items"][0]["pinned"] is True
+        assert client.get(prefix, params={"board_id": second}).json()["items"][0]["pinned"] is False
+        assert client.post(prefix + "/boards", json={"name": "  "}).status_code == 422
+        assert (
+            client.patch(prefix + "/boards/" + board_id, json={"name": "在售"}).status_code == 204
+        )
+        assert client.get(prefix + "/boards").json()[0]["name"] == "在售"
+        assert (
+            client.post(
+                prefix + "/" + artifact_id + "/references", json={"target_id": artifact_id}
+            ).status_code
+            == 422
+        )
+        assert client.get(prefix + "/" + child_id + "/graph").status_code == 200
+        acting.id = other
+        assert client.get(prefix, params={"board_id": board_id}).json()["total"] == 0
+        assert client.get(prefix + "/" + child_id + "/graph").status_code == 404
+        assert (
+            client.put(prefix + "/boards/" + board_id + "/items/" + child_id, json={}).status_code
+            == 404
+        )
+        assert (
+            client.delete(prefix + "/" + child_id + "/references/" + artifact_id).status_code == 404
+        )
+        acting.id = owner
+        assert (
+            client.delete(prefix + "/" + child_id + "/references/" + artifact_id).status_code == 204
+        )
+        assert [edge["kind"] for edge in refs.graph(owner, child_id)["edges"]] == ["derivation"]
+        assert client.delete(prefix + "/boards/" + board_id).status_code == 204
+        assert artifacts.get(owner, artifact_id) is not None
+        assert boards.list(owner)[0]["board_id"] == second
+    db.close()

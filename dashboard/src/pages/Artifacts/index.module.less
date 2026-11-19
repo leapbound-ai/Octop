@@ -1,0 +1,270 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 16px;
+  max-width: 72rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+}
+
+.detailHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.detailIntro {
+  flex: 1 1 20rem;
+  min-width: 0;
+
+  h2 {
+    margin: 0 0 8px;
+    font-size: clamp(20px, 3vw, 28px);
+    line-height: 1.25;
+    color: var(--fn-text-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
+.detailActions {
+  max-width: 100%;
+}
+
+.fileDetails {
+  overflow-wrap: anywhere;
+}
+
+.summaryBlock {
+  padding: 16px 20px;
+  border-left: 3px solid var(--fn-primary);
+  background: var(--fn-bg-hover);
+  border-radius: 0 8px 8px 0;
+
+  p {
+    max-width: 68ch;
+    margin: 6px 0 0;
+    color: var(--fn-text-primary);
+    font-size: 16px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .summaryDetail {
+    color: var(--fn-text-secondary);
+    font-size: 13px;
+  }
+}
+
+.summaryLabel {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  color: var(--fn-text-secondary);
+  font-size: 13px;
+
+  strong {
+    color: var(--fn-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.filters {
+  width: 100%;
+}
+
+.artifactList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--fn-border-secondary);
+  border-radius: 8px;
+}
+
+.artifactRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+
+  & + & {
+    border-top: 1px solid var(--fn-border-secondary);
+  }
+
+  &:hover,
+  &:focus-within {
+    background: var(--fn-bg-hover);
+  }
+}
+
+.fileIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--fn-bg-hover);
+  color: var(--fn-text-secondary);
+}
+
+.rowContent {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.artifactTitle {
+  display: inline-block;
+  color: var(--fn-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rowContent .rowSummary {
+  margin: 4px 0;
+}
+
+.rowMeta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--fn-text-secondary);
+}
+
+.rowTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .artifactRow {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 12px;
+    row-gap: 6px;
+  }
+
+  .rowActions {
+    grid-column: 2;
+  }
+}
+
+.versionComparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 16px;
+
+  section {
+    min-width: 0;
+  }
+
+  pre {
+    max-height: 26rem;
+    overflow: auto;
+    padding: 12px;
+    margin: 8px 0 0;
+    border: 1px solid var(--fn-border-secondary);
+    border-radius: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  mark {
+    color: inherit;
+    background: var(--fn-bg-hover);
+  }
+}
+
+.preview {
+  min-width: 0;
+
+  iframe {
+    min-height: 28rem;
+  }
+}
+
+.boards,
+.boardActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.boards {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--fn-border-secondary);
+}
+.dropTarget {
+  outline: 2px dashed currentColor;
+  outline-offset: 3px;
+}
+.referenceSelect {
+  width: min(340px, 65vw);
+}
+.graph {
+  overflow: auto;
+  max-height: 420px;
+  border-block: 1px solid var(--fn-border-secondary);
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 800px;
+    color: var(--fn-text-secondary, #666);
+  }
+  rect {
+    fill: var(--fn-bg-elevated, #fafafa);
+    stroke: var(--fn-border-secondary, #ddd);
+  }
+  text {
+    fill: var(--fn-text-primary, #222);
+    font-size: 14px;
+  }
+  a:hover rect,
+  a:focus rect {
+    stroke: currentColor;
+    stroke-width: 2;
+  }
+  .currentNode {
+    fill: var(--fn-bg-hover, #eee);
+    stroke-width: 2;
+  }
+  .edgeLabel {
+    font-size: 11px;
+    fill: var(--fn-text-secondary, #666);
+  }
+}
+.graphEdge {
+  fill: none;
+  stroke: currentColor;
+  opacity: 0.6;
+}
+.relationList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  > div {
+    overflow-wrap: anywhere;
+  }
+}
+.comment {
+  border-top: 1px solid var(--fn-border-secondary);
+  padding-top: 8px;
+}

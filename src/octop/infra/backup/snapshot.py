@@ -19,6 +19,7 @@ _OWNERSHIP_TABLES = (
     "cron_jobs",
     "sessions",
     "threads",
+    "artifacts",
     "connectors",
     "connector_oauth_states",
     "usage_log",

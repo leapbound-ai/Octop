@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { beginPointerDragSession } from "./usePointerDragSession";
+
+export const RAIL_COLLAPSE_OVERSHOOT = 32;
 
 interface UseHorizontalResizeOptions {
   min: number;
   max: number;
   defaultSize: number;
   storageKey?: string;
+  resizeTargetRef?: RefObject<HTMLElement>;
+  onCollapse?: () => void;
+  onExpand?: () => void;
 }
 
 function loadSize(key: string | undefined, fallback: number): number {
@@ -35,8 +46,13 @@ export function useHorizontalResize({
   max,
   defaultSize,
   storageKey,
+  resizeTargetRef,
+  onCollapse,
+  onExpand,
 }: UseHorizontalResizeOptions) {
-  const [size, setSize] = useState(() => loadSize(storageKey, defaultSize));
+  const [size, setSize] = useState(() =>
+    clamp(loadSize(storageKey, defaultSize), min, max),
+  );
   const [isResizing, setIsResizing] = useState(false);
   const sizeRef = useRef(size);
   sizeRef.current = size;
@@ -69,46 +85,73 @@ export function useHorizontalResize({
         divider?.previousElementSibling instanceof HTMLElement
           ? divider.previousElementSibling
           : null;
-      targetRef.current = fromDivider ?? treeCandidate;
+      targetRef.current = resizeTargetRef
+        ? resizeTargetRef.current
+        : fromDivider ?? treeCandidate;
 
-      startRef.current = { x: e.clientX, w: sizeRef.current };
-      pendingRef.current = sizeRef.current;
+      const savedSize = sizeRef.current;
+      const targetWidth = resizeTargetRef?.current?.getBoundingClientRect().width;
+      const isCollapsed = Boolean(
+        onExpand && targetWidth !== undefined && targetWidth < min,
+      );
+      const startWidth = isCollapsed ? min : targetWidth || sizeRef.current;
+      startRef.current = { x: e.clientX, w: startWidth };
+      pendingRef.current = startWidth;
       setIsResizing(true);
       if (targetRef.current) {
-        targetRef.current.style.width = `${sizeRef.current}px`;
+        targetRef.current.style.width = `${startWidth}px`;
+      }
+      if (isCollapsed) {
+        sizeRef.current = startWidth;
+        setSize(startWidth);
+        onExpand?.();
       }
 
-      // MouseEvent path (no pointerId) — keep a minimal document listener.
-      if (!("pointerId" in e)) {
-        const onMove = (ev: MouseEvent) => {
-          const next = clamp(
-            startRef.current.w + ev.clientX - startRef.current.x,
-            min,
-            max,
-          );
-          pendingRef.current = next;
-          if (targetRef.current) {
-            targetRef.current.style.width = `${next}px`;
+      let collapseOnRelease = false;
+      const onDrag = (clientX: number) => {
+        const requested = Math.round(
+          startRef.current.w + clientX - startRef.current.x,
+        );
+        collapseOnRelease = requested <= min - RAIL_COLLAPSE_OVERSHOOT;
+        const next = clamp(requested, min, max);
+        pendingRef.current = next;
+        if (targetRef.current) {
+          targetRef.current.style.width = `${next}px`;
+        }
+      };
+      const finishDrag = () => {
+        const finalSize = pendingRef.current ?? sizeRef.current;
+        const target = targetRef.current;
+        pendingRef.current = null;
+        targetRef.current = null;
+        setIsResizing(false);
+        if (collapseOnRelease && onCollapse) {
+          sizeRef.current = savedSize;
+          setSize(savedSize);
+          if (target) target.style.width = `${savedSize}px`;
+          onCollapse();
+          return;
+        }
+        sizeRef.current = finalSize;
+        setSize(finalSize);
+        if (storageKey) {
+          try {
+            localStorage.setItem(storageKey, String(finalSize));
+          } catch {
+            /* ignore */
           }
-        };
+        }
+      };
+
+      // MouseEvent path (no pointerId).
+      if (!("pointerId" in e)) {
+        const onMove = (ev: MouseEvent) => onDrag(ev.clientX);
         const onUp = () => {
-          const finalSize = pendingRef.current ?? sizeRef.current;
-          pendingRef.current = null;
-          targetRef.current = null;
-          setIsResizing(false);
-          sizeRef.current = finalSize;
-          setSize(finalSize);
           document.removeEventListener("mousemove", onMove);
           document.removeEventListener("mouseup", onUp);
           document.body.style.cursor = "";
           document.body.style.userSelect = "";
-          if (storageKey) {
-            try {
-              localStorage.setItem(storageKey, String(finalSize));
-            } catch {
-              /* ignore */
-            }
-          }
+          finishDrag();
         };
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
@@ -121,35 +164,11 @@ export function useHorizontalResize({
         pointerId: e.pointerId,
         target: handle,
         cursor: "col-resize",
-        onMove: (clientX) => {
-          const next = clamp(
-            startRef.current.w + clientX - startRef.current.x,
-            min,
-            max,
-          );
-          pendingRef.current = next;
-          if (targetRef.current) {
-            targetRef.current.style.width = `${next}px`;
-          }
-        },
-        onEnd: () => {
-          const finalSize = pendingRef.current ?? sizeRef.current;
-          pendingRef.current = null;
-          targetRef.current = null;
-          setIsResizing(false);
-          sizeRef.current = finalSize;
-          setSize(finalSize);
-          if (storageKey) {
-            try {
-              localStorage.setItem(storageKey, String(finalSize));
-            } catch {
-              /* ignore */
-            }
-          }
-        },
+        onMove: onDrag,
+        onEnd: finishDrag,
       });
     },
-    [min, max, storageKey],
+    [min, max, storageKey, resizeTargetRef, onCollapse, onExpand],
   );
 
   useEffect(() => {

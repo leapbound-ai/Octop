@@ -123,6 +123,34 @@ def extract_artifact_paths(
     return _dedupe_paths(_paths_from_content(result), ws)
 
 
+def extract_reported_artifact_paths(result: Any) -> list[str]:
+    """Find path hints in successful tool output without rebasing absolute paths."""
+    if isinstance(result, list):
+        return [path for item in result[:30] for path in extract_reported_artifact_paths(item)]
+    if isinstance(result, Mapping):
+        if result.get("status") in ("error", "failed"):
+            return []
+        text = result.get("text")
+        return _paths_from_content(result) + (
+            extract_reported_artifact_paths(text) if isinstance(text, str) else []
+        )
+    if isinstance(result, str):
+        if len(result) > 64_000:
+            return []
+        if result.lstrip().startswith(("{", "[")):
+            try:
+                parsed = json.loads(result)
+            except ValueError:
+                pass
+            else:
+                return extract_reported_artifact_paths(parsed)
+        return [
+            *(match.group(0) for match in _ABS_OCTOP_RE.finditer(result)),
+            *(match.group(1) for match in _REL_DIR_RE.finditer(result)),
+        ][:30]
+    return []
+
+
 def artifacts_for_response(
     artifacts: Sequence[object],
     workspace_dir: Path,

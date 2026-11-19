@@ -286,6 +286,7 @@ const Markdown = memo(function Markdown({
     useMathPlugins(renderContent);
   const remarkPlugins = useMemo(() => [remarkGfm, ...mathRemark], [mathRemark]);
   const rehypePlugins = useMemo(() => [...mathRehype], [mathRehype]);
+  const isSourcingReport = content.startsWith("# 选品报告 · ");
 
   return (
     <div
@@ -300,6 +301,30 @@ const Markdown = memo(function Markdown({
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
         components={{
+          li({ node, className, children, ...props }) {
+            const first = node?.children[0];
+            const label =
+              first?.type === "element" && first.tagName === "p"
+                ? first.children[0]
+                : first;
+            const isRationale =
+              isSourcingReport &&
+              label?.type === "element" &&
+              label.tagName === "strong" &&
+              label.children[0]?.type === "text" &&
+              label.children[0].value === "分档依据";
+            return (
+              <li
+                {...props}
+                className={cx(
+                  className,
+                  isRationale && styles.sourcingRationale,
+                )}
+              >
+                {children}
+              </li>
+            );
+          },
           code(
             codeProps: React.ComponentPropsWithoutRef<"code"> & {
               className?: string;

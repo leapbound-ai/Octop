@@ -2,6 +2,9 @@ import { lazy } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
 // Lazy-loaded pages — Common
+const ArtifactsPage = lazy(() => import("../pages/Artifacts"));
+const ProfitCalculatorPage = lazy(() => import("../pages/ProfitCalculator"));
+const SourcingRfqPage = lazy(() => import("../pages/SourcingRfq"));
 const ExpertsPage = lazy(() => import("../pages/Experts"));
 const CronJobsPage = lazy(() => import("../pages/Control/CronJobs"));
 const ConnectorsPage = lazy(() => import("../pages/Agent/Connectors"));
@@ -48,6 +51,9 @@ export interface RouteConfig {
 
 export const pathToKey: Record<string, string> = {
   "/chat": "chat",
+  "/artifacts": "artifacts",
+  "/profit-calculator": "profit-calculator",
+  "/supplier-rfq": "supplier-rfq",
   // Common
   "/experts": "experts",
   "/tasks": "tasks",
@@ -139,6 +145,8 @@ export function isPersonalizationPath(pathname: string): boolean {
 export function resolveSelectedKey(pathname: string): string {
   if (pathToKey[pathname]) return pathToKey[pathname];
   if (pathname.startsWith("/chat/")) return "chat";
+  if (pathname.startsWith("/artifacts/")) return "artifacts";
+  if (pathname.startsWith("/supplier-rfq/")) return "supplier-rfq";
   if (pathname.startsWith("/workbench/")) return "workbench";
   if (pathname.startsWith("/remote-desktop/")) return "remote-desktop";
   if (pathname.startsWith("/personalization/")) return "personalization";
@@ -152,6 +160,11 @@ export const routeConfigs: RouteConfig[] = [
   { path: "/chat/:agentId/:threadId", element: null, useWrapper: true },
 
   // Common
+  { path: "/artifacts", element: <ArtifactsPage /> },
+  { path: "/profit-calculator", element: <ProfitCalculatorPage /> },
+  { path: "/supplier-rfq", element: <SourcingRfqPage /> },
+  { path: "/supplier-rfq/:inquiryId", element: <SourcingRfqPage /> },
+  { path: "/artifacts/:artifactId", element: <ArtifactsPage /> },
   { path: "/experts", element: <ExpertsPage /> },
   { path: "/tasks", element: <CronJobsPage /> },
   { path: "/connectors", element: <ConnectorsPage /> },

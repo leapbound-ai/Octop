@@ -469,6 +469,8 @@ class ThreadRegistry:
         title: str | None = None,
         last_active: int = 0,
         thread_id: str | None = None,
+        artifact_parent_id: str = "",
+        artifact_parent_version: int | None = None,
     ) -> str:
         """Insert a thread row without rebinding the active session."""
         tid = thread_id or _new_thread_id()
@@ -480,6 +482,8 @@ class ThreadRegistry:
             session_key=session_key,
             title=title,
             last_active=last_active,
+            artifact_parent_id=artifact_parent_id,
+            artifact_parent_version=artifact_parent_version,
         )
         return tid
 

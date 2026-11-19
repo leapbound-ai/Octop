@@ -99,7 +99,7 @@
 
   &:focus-within {
     border-color: var(--fn-color-brand);
-    box-shadow: 0 0 0 2px var(--fn-color-brand-glow);
+    box-shadow: none;
   }
 
   @media (max-width: 767px) {
@@ -118,7 +118,6 @@
   align-items: center;
   justify-content: flex-start;
   padding-top: 6px;
-  border-top: 1px solid var(--fn-border-secondary);
   margin-top: 4px;
   overflow: visible;
 }
@@ -126,7 +125,7 @@
 .secondaryActions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   flex: 0 0 auto;
   order: 1;
@@ -216,7 +215,7 @@
   font-size: 14px;
   line-height: 1.6;
   resize: none;
-  min-height: 64px;
+  min-height: 32px;
   max-height: 160px;
   padding: 4px 0;
   font-family: inherit;
@@ -234,7 +233,7 @@
 .inputActions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
   order: 3;
   margin-left: auto;
@@ -403,13 +402,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border: none;
+  border-radius: var(--fn-radius-full);
   background: transparent;
   cursor: pointer;
   padding: 0;
+  transition: background var(--fn-transition-fast);
+
+  &:hover {
+    background: var(--fn-bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--fn-color-brand);
+    outline-offset: 2px;
+  }
 }
 
 /* App uses ConfigProvider prefixCls="octop"; keep ant-* as fallback. */
@@ -544,7 +554,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--fn-text-tertiary);
   line-height: 1;

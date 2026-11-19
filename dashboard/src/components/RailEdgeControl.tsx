@@ -7,6 +7,7 @@ interface RailEdgeControlProps {
   /** Whether the panel this edge belongs to is currently expanded. */
   expanded: boolean;
   onToggle: () => void;
+  showToggle?: boolean;
   /**
    * ``end`` — edge sits on the right of an expanded panel (collapse btn to the left).
    * ``start`` — edge sits where a collapsed panel was (expand btn to the right).
@@ -30,8 +31,7 @@ interface RailEdgeControlProps {
    */
   placement?: "center" | "before" | "after";
   /**
-   * Drag the upper stretch of the line to resize the panel. The centered
-   * toggle stays a click target.
+   * Drag the line above or below the centered collapse toggle.
    */
   onResizeStart?: (event: PointerEvent<HTMLDivElement>) => void;
   resizeLabel?: string;
@@ -44,6 +44,7 @@ interface RailEdgeControlProps {
 export default function RailEdgeControl({
   expanded,
   onToggle,
+  showToggle = true,
   side = "end",
   label,
   hint,
@@ -75,34 +76,39 @@ export default function RailEdgeControl({
       {showLine ? <div className={styles.line} aria-hidden /> : null}
       {onResizeStart ? (
         <div
-          className={styles.resizeGrip}
+          className={[styles.resizeGrip, !showToggle && styles.resizeGripContinuous]
+            .filter(Boolean)
+            .join(" ")}
           onPointerDown={onResizeStart}
           role="separator"
           aria-orientation="vertical"
           aria-label={resizeLabel ?? t("chat.resizeSidebar", "调整侧栏宽度")}
+          title={resizeLabel ?? t("chat.resizeSidebar", "调整侧栏宽度")}
         />
       ) : null}
-      <button
-        type="button"
-        className={`${styles.btn} ${
-          placement === "before"
-            ? styles.btnBefore
-            : placement === "after"
-            ? styles.btnAfter
-            : ""
-        }`}
-        onClick={onToggle}
-        aria-label={ariaLabel}
-        aria-expanded={expanded}
-        aria-keyshortcuts={shortcut}
-        title={hint ?? ariaLabel}
-      >
-        {expanded ? (
-          <ChevronLeft size={14} strokeWidth={2} aria-hidden />
-        ) : (
-          <ChevronRight size={14} strokeWidth={2} aria-hidden />
-        )}
-      </button>
+      {showToggle && (
+        <button
+          type="button"
+          className={`${styles.btn} ${
+            placement === "before"
+              ? styles.btnBefore
+              : placement === "after"
+              ? styles.btnAfter
+              : ""
+          }`}
+          onClick={onToggle}
+          aria-label={ariaLabel}
+          aria-expanded={expanded}
+          aria-keyshortcuts={shortcut}
+          title={hint ?? ariaLabel}
+        >
+          {expanded ? (
+            <ChevronLeft size={14} strokeWidth={2} aria-hidden />
+          ) : (
+            <ChevronRight size={14} strokeWidth={2} aria-hidden />
+          )}
+        </button>
+      )}
     </div>
   );
 }

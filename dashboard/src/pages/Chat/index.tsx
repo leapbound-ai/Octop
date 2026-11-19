@@ -93,7 +93,6 @@ import {
   dockTabIdForToolCall,
 } from "./ChatToolDockContext";
 import ChatSidebarPanel from "./components/ChatSidebarPanel";
-import ChatTitleBar from "./components/ChatTitleBar";
 import SessionShareMark from "./components/SessionShareMark";
 import TeamChatBadge from "./components/TeamChatBadge";
 import RemoteExpertHint from "./components/RemoteExpertHint";
@@ -1539,26 +1538,6 @@ function ChatPageInner() {
                 )}
               </div>
             )}
-
-            {!isMobile &&
-              (activeSession && activeSessionTitle ? (
-                <ChatTitleBar
-                  session={activeSession}
-                  title={activeSessionTitle}
-                  onRename={renameSession}
-                  onPin={pinSession}
-                  onFork={handleForkSession}
-                  onDelete={handleDeleteSession}
-                  forkDisabled={sessionForkDisabled}
-                  forkDisabledHint={sessionForkDisabledHint}
-                  isTeam={isTeamChat}
-                  agent={activeAgent}
-                />
-              ) : (
-                /* Empty chat: same row, same bounds — the composer must not
-                   jump up before the first message exists. */
-                <div className={styles.chatTitleBarEmpty} />
-              ))}
 
             {memoryMaintVisible && memoryMaint && (
               <MemoryMaintenanceBanner

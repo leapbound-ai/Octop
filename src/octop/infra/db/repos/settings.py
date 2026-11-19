@@ -28,6 +28,12 @@ class SettingsRepo:
         with self._db.transaction() as conn:
             conn.execute("DELETE FROM settings WHERE key = ?", (key,))
 
+    def artifact_collect_mode(self, user_id: int) -> str:
+        return self.get(f"artifacts.collect_mode:{user_id}") or "documents"
+
+    def set_artifact_collect_mode(self, user_id: int, mode: str) -> None:
+        self.set(f"artifacts.collect_mode:{user_id}", mode)
+
     def get_active_model(self) -> tuple[str, str]:
         """Return (provider_name, model_id); empty strings if not set."""
         raw = self.get(self._KEY_ACTIVE_MODEL) or ""

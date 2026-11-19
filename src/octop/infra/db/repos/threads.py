@@ -167,13 +167,16 @@ class ThreadRepo:
         session_key: str,
         title: str | None = None,
         last_active: int | None = None,
+        artifact_parent_id: str = "",
+        artifact_parent_version: int | None = None,
     ) -> None:
         ts = now_ts()
+        conflict = " ON CONFLICT(thread_id) DO NOTHING" if artifact_parent_id else ""
         with self._db.transaction() as conn:
             conn.execute(
                 "INSERT INTO threads(thread_id, agent_id, user_id, channel_type, "
-                "session_key, title, last_active, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "session_key, title, last_active, created_at, artifact_parent_id, artifact_parent_version) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" + conflict,
                 (
                     thread_id,
                     agent_id,
@@ -183,6 +186,8 @@ class ThreadRepo:
                     clip_thread_title(title) if title else None,
                     ts if last_active is None else last_active,
                     ts,
+                    artifact_parent_id,
+                    artifact_parent_version,
                 ),
             )
             conn.execute(
@@ -195,6 +200,17 @@ class ThreadRepo:
         with self._db.connect() as conn:
             r = conn.execute("SELECT * FROM threads WHERE thread_id = ?", (thread_id,)).fetchone()
         return ThreadRow.from_row(r) if r else None
+
+    def artifact_source(
+        self, thread_id: str, user_id: int, agent_id: str
+    ) -> tuple[str, int | None] | None:
+        with self._db.connect() as conn:
+            row = conn.execute(
+                "SELECT artifact_parent_id, artifact_parent_version FROM threads"
+                " WHERE thread_id = ? AND user_id = ? AND agent_id = ?",
+                (thread_id, user_id, agent_id),
+            ).fetchone()
+        return (row["artifact_parent_id"], row["artifact_parent_version"]) if row else None
 
     def list_ids_for_agent(self, agent_id: str) -> set[str]:
         """Every thread id stored for ``agent_id``, with no row cap."""

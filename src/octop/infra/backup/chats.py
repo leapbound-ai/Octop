@@ -12,6 +12,8 @@ from octop.infra.db.pool import DatabasePool
 
 # Child-first for DELETE; reverse for INSERT.
 CHAT_TABLES_CHILD_FIRST = (
+    "artifact_versions",
+    "artifacts",
     "history_v2_retirement",
     "trajectory_events",
     "thread_messages",
@@ -139,6 +141,7 @@ def restore_preserved_chats(pool: DatabasePool, spool_path: Path) -> tuple[int, 
                     conn.execute(f"DELETE FROM {table}")
 
             kept_threads: set[str] = set()
+            kept_artifacts: set[str] = set()
             for table in CHAT_TABLES_PARENT_FIRST:
                 columns = _spool_columns(spool, table)
                 if not columns or not _table_exists(conn, table, dialect=dialect):
@@ -159,6 +162,7 @@ def restore_preserved_chats(pool: DatabasePool, spool_path: Path) -> tuple[int, 
                             old_id_to_name=old_id_to_name,
                             new_name_to_id=new_name_to_id,
                             kept_threads=kept_threads,
+                            kept_artifacts=kept_artifacts,
                         )
                         if mapped is None:
                             skipped += 1
@@ -166,6 +170,8 @@ def restore_preserved_chats(pool: DatabasePool, spool_path: Path) -> tuple[int, 
                         batch.append(mapped)
                         if table == "threads" and "thread_id" in col_index:
                             kept_threads.add(str(mapped[col_index["thread_id"]]))
+                        if table == "artifacts" and "artifact_id" in col_index:
+                            kept_artifacts.add(str(mapped[col_index["artifact_id"]]))
                     if batch:
                         conn.executemany(insert_sql, batch)
                         inserted += len(batch)
@@ -292,8 +298,11 @@ def _remap_chat_row(
     old_id_to_name: dict[int, str],
     new_name_to_id: dict[str, int],
     kept_threads: set[str],
+    kept_artifacts: set[str],
 ) -> tuple[object, ...] | None:
     if "agent_id" in col_index and row[col_index["agent_id"]] not in agent_ids:
+        return None
+    if table == "artifact_versions" and str(row[col_index["artifact_id"]]) not in kept_artifacts:
         return None
     values = list(row)
     old_uid: int | None = None
@@ -311,7 +320,7 @@ def _remap_chat_row(
         if old_uid != new_uid:
             _apply_user_id_rewrite(table, values, col_index, old_uid=old_uid, new_uid=new_uid)
     if (
-        table in ("trajectory_events", "thread_messages", "thread_history_projection")
+        table in ("artifacts", "trajectory_events", "thread_messages", "thread_history_projection")
         and "thread_id" in col_index
         and str(values[col_index["thread_id"]]) not in kept_threads
     ):

@@ -1,11 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type RefObject,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import AvatarDropdown from "../components/AvatarDropdown";
 import AppVersionBadge from "../components/AppVersionBadge";
 import CurrentVersionBadge from "../components/CurrentVersionBadge";
-import { ArrowLeftRight, ChevronDown, X } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
+} from "lucide-react";
 import cx from "classnames";
 import { useTheme } from "../context/ThemeContext";
 import { useLayoutMode } from "../context/LayoutModeContext";
@@ -124,7 +136,11 @@ interface SidebarProps {
   selectedKey: string;
   collapsed: boolean;
   onToggle: () => void;
+  onDesktopRailToggle?: () => void;
   isMobile?: boolean;
+  desktopRailRef?: RefObject<HTMLDivElement>;
+  expandedWidth?: number;
+  isResizing?: boolean;
 }
 
 function historyRailLabels(
@@ -411,7 +427,11 @@ export default function Sidebar({
   selectedKey,
   collapsed,
   onToggle,
+  onDesktopRailToggle,
   isMobile,
+  desktopRailRef,
+  expandedWidth = EXPANDED_WIDTH,
+  isResizing = false,
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -799,18 +819,21 @@ export default function Sidebar({
     <div className={styles.navRailHost}>
       <div
         className={styles.navRail}
+        ref={desktopRailRef}
         style={{
-          width: isRailCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
+          width: isRailCollapsed ? COLLAPSED_WIDTH : expandedWidth,
+          maxWidth: isRailCollapsed
+            ? undefined
+            : `max(${EXPANDED_WIDTH}px, 32vw)`,
           // On macOS the collapsed rail is the traffic-light column.
           // Icons, logo and footer center on it; the shell centers the
           // lights on the same line.
-          minWidth: `max(${
-            isRailCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH
-          }px, var(--window-controls-inset-start, 0px))`,
+          minWidth: "var(--window-controls-inset-start, 0px)",
           background: "var(--fn-sidebar-bg)",
           borderRight: "none",
-          transition:
-            "width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: isResizing
+            ? "none"
+            : "width 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -824,18 +847,25 @@ export default function Sidebar({
         {reserveTrafficLightBand ? (
           <div className={styles.navChrome} aria-hidden />
         ) : null}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            minWidth: 0,
-            // Same top inset either way, so expanding only widens the bar.
-            padding: isRailCollapsed ? "10px 0 12px" : "10px 8px 10px 14px",
-            justifyContent: isRailCollapsed ? "center" : "flex-start",
-            flexShrink: 0,
-          }}
-        >
+        <div className={styles.navRailHeader}>
+          <button
+            type="button"
+            className={styles.navRailToggle}
+            onClick={onDesktopRailToggle ?? onToggle}
+            aria-label={t(
+              isRailCollapsed ? "layout.expandNav" : "layout.collapseNav",
+            )}
+            aria-expanded={!isRailCollapsed}
+            title={t(
+              isRailCollapsed ? "layout.expandNav" : "layout.collapseNav",
+            )}
+          >
+            {isRailCollapsed ? (
+              <PanelLeftOpen size={17} strokeWidth={1.8} aria-hidden />
+            ) : (
+              <PanelLeftClose size={17} strokeWidth={1.8} aria-hidden />
+            )}
+          </button>
           {brandInner}
         </div>
         <div

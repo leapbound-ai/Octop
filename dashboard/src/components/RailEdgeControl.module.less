@@ -144,17 +144,39 @@
   transform: translate(3px, -50%);
 }
 
-/* Upper stretch of the divider: drag to resize. Stops above the toggle. */
+/* Leave the center free for the collapse toggle and the inner gutter for scrolling. */
 .resizeGrip {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: calc(50% - 28px);
+  inset: 0;
   z-index: 2;
-  pointer-events: auto;
-  cursor: col-resize;
+  pointer-events: none;
   touch-action: none;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: calc(50% - 28px);
+    pointer-events: auto;
+    cursor: col-resize;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  &::before {
+    top: 0;
+  }
+
+  &::after {
+    bottom: 0;
+  }
+}
+
+.resizeGripContinuous::before,
+.resizeGripContinuous::after {
+  height: 50%;
 }
 
 /* Keep the resize hit on the outer side of the line, same as the hover strip. */
